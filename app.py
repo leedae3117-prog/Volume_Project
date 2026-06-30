@@ -7,6 +7,49 @@ from supabase import create_client
 
 st.set_page_config(page_title="운동 기록", page_icon="🏋️", layout="centered")
 
+st.markdown(
+    """
+    <style>
+    .volume-box {
+        min-height: 38px;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        border: 1px solid rgba(250, 250, 250, 0.2);
+        border-radius: 8px;
+        background: rgba(250, 250, 250, 0.06);
+        color: rgba(250, 250, 250, 0.78);
+        font-size: 14px;
+    }
+
+    @media (max-width: 640px) {
+        [data-testid="stHorizontalBlock"] {
+            flex-wrap: nowrap;
+            gap: 0.35rem;
+        }
+
+        [data-testid="column"] {
+            min-width: 0;
+        }
+
+        [data-testid="stNumberInput"] input {
+            min-width: 0;
+            padding-left: 0.45rem;
+            padding-right: 0.2rem;
+            font-size: 0.82rem;
+        }
+
+        .volume-box {
+            min-height: 38px;
+            padding: 0 0.45rem;
+            font-size: 0.82rem;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 BODY_PARTS = ["가슴", "등", "하체", "어깨", "팔", "복근", "기타"]
 
@@ -66,17 +109,9 @@ def show_set_inputs():
     if "set_count" not in st.session_state:
         st.session_state.set_count = 3
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("+ 세트 추가", use_container_width=True):
-            st.session_state.set_count += 1
-    with col2:
-        if st.button("- 세트 삭제", use_container_width=True):
-            st.session_state.set_count = max(1, st.session_state.set_count - 1)
-
-    header = st.columns([0.8, 1.4, 1.4, 1.4])
+    header = st.columns([0.7, 1.35, 1.25, 1.25])
     header[0].markdown("")
-    header[1].markdown("**무게**")
+    header[1].markdown("**무게(kg)**")
     header[2].markdown("**횟수**")
     header[3].markdown("**볼륨**")
 
@@ -84,13 +119,14 @@ def show_set_inputs():
     total_volume = 0
 
     for i in range(1, st.session_state.set_count + 1):
-        row = st.columns([0.8, 1.4, 1.4, 1.4])
+        row = st.columns([0.7, 1.35, 1.25, 1.25])
         row[0].markdown(f"**{i}set**")
 
         weight = row[1].number_input(
-            "무게",
+            "무게(kg)",
             min_value=0.0,
-            step=0.5,
+            step=5.0,
+            format="%.0f",
             key=f"weight_{i}",
             label_visibility="collapsed",
         )
@@ -102,12 +138,13 @@ def show_set_inputs():
             label_visibility="collapsed",
         )
         volume = weight * reps
-        row[3].number_input(
-            "볼륨",
-            value=float(volume),
-            disabled=True,
-            key=f"volume_{i}",
-            label_visibility="collapsed",
+        row[3].markdown(
+            f"""
+            <div class="volume-box">
+                {volume:,.0f} kg
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
         sets.append({"weight": weight, "reps": reps})
