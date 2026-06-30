@@ -14,12 +14,18 @@ st.markdown(
         min-height: 38px;
         display: flex;
         align-items: center;
+        justify-content: center;
         padding: 0 12px;
         border: 1px solid rgba(250, 250, 250, 0.2);
         border-radius: 8px;
         background: rgba(250, 250, 250, 0.06);
         color: rgba(250, 250, 250, 0.78);
         font-size: 14px;
+    }
+
+    .set-title {
+        margin: 0.9rem 0 0.25rem;
+        font-weight: 700;
     }
 
     @media (max-width: 640px) {
@@ -29,8 +35,7 @@ st.markdown(
         }
 
         [data-testid="stHorizontalBlock"] {
-            flex-wrap: nowrap;
-            gap: 0.18rem;
+            gap: 0.45rem;
             width: 100%;
             max-width: 100%;
         }
@@ -42,37 +47,15 @@ st.markdown(
             padding-right: 0 !important;
         }
 
-        [data-testid="stNumberInput"] {
-            min-width: 0;
-            width: 100%;
-        }
-
-        [data-testid="stNumberInput"] > div {
-            min-width: 0;
-            width: 100%;
-        }
-
-        [data-testid="stNumberInput"] button {
-            width: 1.15rem;
-            min-width: 1.15rem;
-            padding-left: 0;
-            padding-right: 0;
-        }
-
         [data-testid="stNumberInput"] input {
-            min-width: 0;
-            width: 100%;
-            padding-left: 0.22rem;
-            padding-right: 0.12rem;
-            font-size: 0.72rem;
+            font-size: 0.9rem;
             text-align: center;
         }
 
         .volume-box {
             min-height: 38px;
-            justify-content: center;
-            padding: 0 0.12rem;
-            font-size: 0.72rem;
+            padding: 0 0.75rem;
+            font-size: 0.9rem;
             white-space: nowrap;
         }
     }
@@ -140,39 +123,31 @@ def show_set_inputs():
     if "set_count" not in st.session_state:
         st.session_state.set_count = 3
 
-    header = st.columns([0.55, 1.0, 0.95, 0.9])
-    header[0].markdown("")
-    header[1].markdown("**무게(kg)**")
-    header[2].markdown("**횟수**")
-    header[3].markdown("**볼륨**")
-
     sets = []
     total_volume = 0
 
     for i in range(1, st.session_state.set_count + 1):
-        row = st.columns([0.55, 1.0, 0.95, 0.9])
-        row[0].markdown(f"**{i}set**")
+        st.markdown(f'<div class="set-title">{i}set</div>', unsafe_allow_html=True)
 
-        weight = row[1].number_input(
+        input_cols = st.columns(2)
+        weight = input_cols[0].number_input(
             "무게(kg)",
             min_value=0.0,
             step=5.0,
             format="%.0f",
             key=f"weight_{i}",
-            label_visibility="collapsed",
         )
-        reps = row[2].number_input(
+        reps = input_cols[1].number_input(
             "횟수",
             min_value=0,
             step=1,
             key=f"reps_{i}",
-            label_visibility="collapsed",
         )
         volume = weight * reps
-        row[3].markdown(
+        st.markdown(
             f"""
             <div class="volume-box">
-                {volume:,.0f}
+                볼륨 {volume:,.0f} kg
             </div>
             """,
             unsafe_allow_html=True,
