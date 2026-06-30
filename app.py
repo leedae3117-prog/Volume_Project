@@ -1,225 +1,255 @@
-import streamlit as st
-import pandas as pd
-from pathlib import Path
 from datetime import date
-import calendar
 
-st.set_page_config(page_title="볼륨 캘린더", page_icon="🏋️", layout="centered")
-
-DATA_PATH = Path("workout_log.csv")
-PARTS = ["가슴", "등", "하체", "어깨", "이두", "삼두", "복근", "기타"]
+import pandas as pd
+import streamlit as st
+from supabase import create_client
 
 
-def load_data():
-    if DATA_PATH.exists():
-        df = pd.read_csv(DATA_PATH)
-        df["날짜"] = pd.to_datetime(df["날짜"]).dt.date
-        return df
-    return pd.DataFrame(columns=["날짜", "부위", "운동명", "세트번호", "무게", "횟수", "볼륨"])
+st.set_page_config(page_title="운동 기록", page_icon="🏋️", layout="centered")
 
 
-def save_data(df):
-    df.to_csv(DATA_PATH, index=False, encoding="utf-8-sig")
+BODY_PARTS = ["가슴", "등", "하체", "어깨", "팔", "복근", "기타"]
 
 
-df = load_data()
-today = date.today()
-
-if "selected_date" not in st.session_state:
-    st.session_state.selected_date = None
-
-if "set_count" not in st.session_state:
-    st.session_state.set_count = 3
-
-st.title("🏋️ 볼륨 캘린더")
-st.caption("날짜를 누르고 운동을 기록하세요.")
+def get_supabase():
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
 
 
-# =========================
-# 캘린더
-# =========================
+supabase = get_supabase()
 
-with st.expander("📅 월별 캘린더", expanded=st.session_state.selected_date is None):
+
+def load_records():
+    response = (
+        supabase.table("workout_sets")
+        .select("*")
+        .order("workout_date", desc=True)
+        .order("exercise_name")
+        .order("set_no")
+        .execute()
+    )
+    return pd.DataFrame(response.data or [])
+
+
+def save_workout(workout_date, body_part, exercise_name, sets):
+    rows = []
+
+    for set_no, item in enumerate(sets, start=1):
+        weight = item.get("weight", 0)
+        reps = item.get("reps", 0)
+        volume = weight * reps
+
+        if weight <= 0 or reps <= 0:
+            continue
+
+        rows.append(
+            {
+                "workout_date": workout_date.isoformat(),
+                "body_part": body_part,
+                "exercise_name": exercise_name.strip(),
+                "set_no": set_no,
+                "weight": weight,
+                "reps": reps,
+                "volume": volume,
+            }
+        )
+
+    if not rows:
+        return 0
+
+    supabase.table("workout_sets").insert(rows).execute()
+    return len(rows)
+
+
+def show_set_inputs():
+    if "set_count" not in st.session_state:
+        st.session_state.set_count = 3
+
     col1, col2 = st.columns(2)
-
     with col1:
-        year = st.number_input("연도", value=today.year, step=1)
-
+        if st.button("+ 세트 추가", use_container_width=True):
+            st.session_state.set_count += 1
     with col2:
-        month = st.selectbox("월", list(range(1, 13)), index=today.month - 1)
+        if st.button("- 세트 삭제", use_container_width=True):
+            st.session_state.set_count = max(1, st.session_state.set_count - 1)
 
-    st.subheader(f"{year}년 {month}월")
+    header = st.columns([0.8, 1.4, 1.4, 1.4])
+    header[0].markdown("")
+    header[1].markdown("**무게**")
+    header[2].markdown("**횟수**")
+    header[3].markdown("**볼륨**")
 
-    weekdays = ["월", "화", "수", "목", "금", "토", "일"]
-    cols = st.columns(7)
+    sets = []
+    total_volume = 0
 
-    for i, day_name in enumerate(weekdays):
-        cols[i].markdown(f"**{day_name}**")
+    for i in range(1, st.session_state.set_count + 1):
+        row = st.columns([0.8, 1.4, 1.4, 1.4])
+        row[0].markdown(f"**{i}set**")
 
-    cal = calendar.Calendar(firstweekday=0)
-    month_days = cal.monthdatescalendar(year, month)
-
-    for week in month_days:
-        cols = st.columns(7)
-
-        for i, d in enumerate(week):
-            if d.month == month:
-                day_df = df[df["날짜"] == d]
-                day_volume = day_df["볼륨"].sum()
-
-                button_label = f"{d.day}\n\n\n"
-
-                if day_volume > 0:
-                    button_label += f"{day_volume:,.0f}kg"
-                else:
-                    button_label += " "
-
-                if cols[i].button(button_label, key=f"day_{d}", use_container_width=True):
-                    st.session_state.selected_date = d
-                    st.rerun()
-            else:
-                cols[i].write("")
-
-
-# =========================
-# 날짜 선택 전
-# =========================
-
-if st.session_state.selected_date is None:
-    st.info("캘린더에서 날짜를 선택해줘.")
-    st.stop()
-
-
-selected_date = st.session_state.selected_date
-
-st.divider()
-
-# =========================
-# 선택 날짜 기록
-# =========================
-
-col_a, col_b = st.columns([3, 1])
-
-with col_a:
-    st.subheader(f"📌 {selected_date} 운동 기록")
-
-with col_b:
-    if st.button("날짜 변경"):
-        st.session_state.selected_date = None
-        st.rerun()
-
-day_df = df[df["날짜"] == selected_date]
-
-if day_df.empty:
-    st.info("이 날짜에는 아직 기록이 없습니다.")
-else:
-    summary = (
-        day_df.groupby(["부위", "운동명"])
-        .agg(
-            세트수=("세트번호", "count"),
-            총볼륨=("볼륨", "sum")
-        )
-        .reset_index()
-    )
-
-    st.dataframe(
-        summary.style.format({"총볼륨": "{:,.0f} kg"}),
-        use_container_width=True
-    )
-
-    with st.expander("세트별 상세 기록"):
-        st.dataframe(
-            day_df[["부위", "운동명", "세트번호", "무게", "횟수", "볼륨"]]
-            .style.format({"무게": "{:.1f}", "볼륨": "{:,.0f} kg"}),
-            use_container_width=True
-        )
-
-
-# =========================
-# 운동 추가
-# =========================
-
-st.markdown("### 운동 추가")
-
-part = st.selectbox("부위", PARTS)
-exercise = st.text_input("운동명", placeholder="예: 벤치프레스")
-
-st.markdown("#### 세트 입력")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    if st.button("세트 추가 +"):
-        st.session_state.set_count += 1
-        st.rerun()
-
-with col2:
-    if st.button("세트 제거 -") and st.session_state.set_count > 1:
-        st.session_state.set_count -= 1
-        st.rerun()
-
-set_rows = []
-
-for i in range(st.session_state.set_count):
-    st.markdown(f"**{i + 1}세트**")
-    c1, c2 = st.columns(2)
-
-    with c1:
-        weight = st.number_input(
-            f"{i + 1}세트 무게 kg",
+        weight = row[1].number_input(
+            "무게",
             min_value=0.0,
-            step=2.5,
-            key=f"weight_{i}"
+            step=0.5,
+            key=f"weight_{i}",
+            label_visibility="collapsed",
         )
-
-    with c2:
-        reps = st.number_input(
-            f"{i + 1}세트 횟수",
+        reps = row[2].number_input(
+            "횟수",
             min_value=0,
             step=1,
-            key=f"reps_{i}"
+            key=f"reps_{i}",
+            label_visibility="collapsed",
+        )
+        volume = weight * reps
+        row[3].number_input(
+            "볼륨",
+            value=float(volume),
+            disabled=True,
+            key=f"volume_{i}",
+            label_visibility="collapsed",
         )
 
-    volume = weight * reps
-    st.caption(f"세트 볼륨: {volume:,.0f} kg")
+        sets.append({"weight": weight, "reps": reps})
+        total_volume += volume
 
-    set_rows.append({
-        "세트번호": i + 1,
-        "무게": weight,
-        "횟수": reps,
-        "볼륨": volume
-    })
+    st.metric("이 운동 총 볼륨", f"{total_volume:,.0f} kg")
+    return sets
 
-total_volume = sum(row["볼륨"] for row in set_rows)
-st.metric("이 종목 총 볼륨", f"{total_volume:,.0f} kg")
 
-if st.button("운동 기록 저장", use_container_width=True):
-    if exercise.strip() == "":
-        st.warning("운동명을 입력해줘.")
-    elif total_volume <= 0:
-        st.warning("최소 1개 세트의 무게와 횟수를 입력해줘.")
-    else:
-        valid_rows = [
-            row for row in set_rows
-            if row["무게"] > 0 and row["횟수"] > 0
-        ]
+def today_page():
+    st.subheader("오늘 운동 기록")
 
-        new_rows = []
+    workout_date = st.date_input("날짜", value=date.today())
+    body_part = st.selectbox("부위", BODY_PARTS)
+    exercise_name = st.text_input("운동명", placeholder="예: 벤치프레스")
 
-        for row in valid_rows:
-            new_rows.append({
-                "날짜": selected_date,
-                "부위": part,
-                "운동명": exercise.strip(),
-                "세트번호": row["세트번호"],
-                "무게": row["무게"],
-                "횟수": row["횟수"],
-                "볼륨": row["볼륨"]
-            })
+    sets = show_set_inputs()
 
-        df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
-        save_data(df)
+    if st.button("운동 저장", type="primary", use_container_width=True):
+        if not exercise_name.strip():
+            st.warning("운동명을 입력해주세요.")
+            return
 
-        st.session_state.set_count = 3
-        st.success(f"{exercise} 저장 완료: {total_volume:,.0f} kg")
-        st.rerun()
+        saved_count = save_workout(workout_date, body_part, exercise_name, sets)
+
+        if saved_count == 0:
+            st.warning("무게와 횟수가 입력된 세트가 없습니다.")
+        else:
+            st.success(f"{saved_count}세트를 저장했습니다.")
+
+
+def monthly_page():
+    st.subheader("월별 기록")
+
+    records = load_records()
+    if records.empty:
+        st.info("아직 저장된 기록이 없습니다.")
+        return
+
+    records["workout_date"] = pd.to_datetime(records["workout_date"]).dt.date
+    records["month"] = records["workout_date"].map(lambda value: value.strftime("%Y-%m"))
+
+    selected_month = st.selectbox("월 선택", sorted(records["month"].unique(), reverse=True))
+    month_records = records[records["month"] == selected_month]
+
+    daily = (
+        month_records.groupby(["workout_date", "body_part"], as_index=False)["volume"]
+        .sum()
+        .sort_values("workout_date", ascending=False)
+    )
+
+    for workout_date, date_group in daily.groupby("workout_date", sort=False):
+        total = date_group["volume"].sum()
+        with st.expander(f"{workout_date} · 총 {total:,.0f} kg"):
+            st.dataframe(
+                date_group[["body_part", "volume"]].rename(
+                    columns={"body_part": "부위", "volume": "볼륨"}
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            detail = month_records[month_records["workout_date"] == workout_date]
+            st.dataframe(
+                detail[["body_part", "exercise_name", "set_no", "weight", "reps", "volume"]]
+                .rename(
+                    columns={
+                        "body_part": "부위",
+                        "exercise_name": "운동명",
+                        "set_no": "세트",
+                        "weight": "무게",
+                        "reps": "횟수",
+                        "volume": "볼륨",
+                    }
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+
+def body_part_page():
+    st.subheader("부위별 기록")
+
+    records = load_records()
+    if records.empty:
+        st.info("아직 저장된 기록이 없습니다.")
+        return
+
+    records["workout_date"] = pd.to_datetime(records["workout_date"]).dt.date
+
+    selected_part = st.selectbox("부위 선택", BODY_PARTS)
+    part_records = records[records["body_part"] == selected_part]
+
+    if part_records.empty:
+        st.info(f"{selected_part} 기록이 없습니다.")
+        return
+
+    daily = (
+        part_records.groupby("workout_date", as_index=False)["volume"]
+        .sum()
+        .sort_values("workout_date", ascending=False)
+    )
+
+    recent = daily.head(6).copy()
+    st.dataframe(
+        recent.rename(columns={"workout_date": "날짜", "volume": "총 볼륨"}),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    if len(recent) >= 2:
+        latest = recent.iloc[0]["volume"]
+        previous = recent.iloc[1]["volume"]
+        diff = latest - previous
+        st.metric("직전 운동 대비", f"{diff:+,.0f} kg")
+
+    st.line_chart(daily.sort_values("workout_date").set_index("workout_date")["volume"])
+
+    latest_date = daily.iloc[0]["workout_date"]
+    st.markdown(f"**최근 {selected_part} 운동 상세 · {latest_date}**")
+    latest_records = part_records[part_records["workout_date"] == latest_date]
+    summary = (
+        latest_records.groupby("exercise_name", as_index=False)["volume"]
+        .sum()
+        .sort_values("volume", ascending=False)
+    )
+    st.dataframe(
+        summary.rename(columns={"exercise_name": "운동명", "volume": "볼륨"}),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+st.title("운동 기록")
+
+tab_today, tab_month, tab_body = st.tabs(["오늘 기록", "월별 기록", "부위별 기록"])
+
+with tab_today:
+    today_page()
+
+with tab_month:
+    monthly_page()
+
+with tab_body:
+    body_part_page()
