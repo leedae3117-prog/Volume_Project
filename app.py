@@ -23,26 +23,57 @@ st.markdown(
     }
 
     @media (max-width: 640px) {
+        .block-container {
+            padding-left: 0.65rem;
+            padding-right: 0.65rem;
+        }
+
         [data-testid="stHorizontalBlock"] {
             flex-wrap: nowrap;
-            gap: 0.35rem;
+            gap: 0.18rem;
+            width: 100%;
+            max-width: 100%;
         }
 
         [data-testid="column"] {
             min-width: 0;
+            flex: 1 1 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        [data-testid="stNumberInput"] {
+            min-width: 0;
+            width: 100%;
+        }
+
+        [data-testid="stNumberInput"] > div {
+            min-width: 0;
+            width: 100%;
+        }
+
+        [data-testid="stNumberInput"] button {
+            width: 1.15rem;
+            min-width: 1.15rem;
+            padding-left: 0;
+            padding-right: 0;
         }
 
         [data-testid="stNumberInput"] input {
             min-width: 0;
-            padding-left: 0.45rem;
-            padding-right: 0.2rem;
-            font-size: 0.82rem;
+            width: 100%;
+            padding-left: 0.22rem;
+            padding-right: 0.12rem;
+            font-size: 0.72rem;
+            text-align: center;
         }
 
         .volume-box {
             min-height: 38px;
-            padding: 0 0.45rem;
-            font-size: 0.82rem;
+            justify-content: center;
+            padding: 0 0.12rem;
+            font-size: 0.72rem;
+            white-space: nowrap;
         }
     }
     </style>
@@ -109,7 +140,7 @@ def show_set_inputs():
     if "set_count" not in st.session_state:
         st.session_state.set_count = 3
 
-    header = st.columns([0.7, 1.35, 1.25, 1.25])
+    header = st.columns([0.55, 1.0, 0.95, 0.9])
     header[0].markdown("")
     header[1].markdown("**무게(kg)**")
     header[2].markdown("**횟수**")
@@ -119,7 +150,7 @@ def show_set_inputs():
     total_volume = 0
 
     for i in range(1, st.session_state.set_count + 1):
-        row = st.columns([0.7, 1.35, 1.25, 1.25])
+        row = st.columns([0.55, 1.0, 0.95, 0.9])
         row[0].markdown(f"**{i}set**")
 
         weight = row[1].number_input(
@@ -141,7 +172,7 @@ def show_set_inputs():
         row[3].markdown(
             f"""
             <div class="volume-box">
-                {volume:,.0f} kg
+                {volume:,.0f}
             </div>
             """,
             unsafe_allow_html=True,
