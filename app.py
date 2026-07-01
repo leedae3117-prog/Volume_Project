@@ -43,33 +43,16 @@ st.markdown(
         }
 
         [data-testid="stHorizontalBlock"] {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
             gap: 0.28rem;
             width: 100%;
             max-width: 100%;
         }
 
         [data-testid="column"] {
-            width: auto !important;
             min-width: 0;
             flex: 1 1 0 !important;
             padding-left: 0 !important;
             padding-right: 0 !important;
-        }
-
-        [data-testid="stCaptionContainer"] {
-            text-align: center;
-        }
-
-        [data-testid="stNumberInput"] {
-            min-width: 0;
-            width: 100%;
-        }
-
-        [data-testid="stNumberInput"] > div {
-            min-width: 0;
-            width: 100%;
         }
 
         [data-testid="stNumberInput"] input {
@@ -80,8 +63,8 @@ st.markdown(
         }
 
         [data-testid="stNumberInput"] button {
-            width: 1.25rem;
-            min-width: 1.25rem;
+            width: 1.45rem;
+            min-width: 1.45rem;
             padding-left: 0;
             padding-right: 0;
         }
