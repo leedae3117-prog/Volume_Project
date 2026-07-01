@@ -37,60 +37,99 @@ st.markdown(
     }
 
     @media (max-width: 640px) {
+        html,
+        body,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stMain"],
+        [data-testid="stMainBlockContainer"] {
+            max-width: 100vw !important;
+            overflow-x: hidden !important;
+        }
+
         .block-container {
-            padding-left: 0.65rem;
-            padding-right: 0.65rem;
+            padding-left: 0.4rem;
+            padding-right: 0.4rem;
+            max-width: 100vw !important;
+            overflow-x: hidden !important;
         }
 
         [data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            gap: 0.28rem;
-            width: 100%;
-            max-width: 100%;
+            gap: 0.16rem !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
         }
 
         [data-testid="column"] {
             width: auto !important;
-            min-width: 0;
+            min-width: 0 !important;
             flex: 1 1 0 !important;
             padding-left: 0 !important;
             padding-right: 0 !important;
+            overflow: hidden !important;
         }
 
         [data-testid="stCaptionContainer"] {
             text-align: center;
+            font-size: 0.72rem;
         }
 
         [data-testid="stNumberInput"] {
-            min-width: 0;
-            width: 100%;
+            min-width: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
         }
 
         [data-testid="stNumberInput"] > div {
-            min-width: 0;
-            width: 100%;
+            min-width: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
+        }
+
+        [data-testid="stNumberInput"] div[data-baseweb="input"] {
+            min-width: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        [data-testid="stNumberInput"] div[data-baseweb="input"] > div {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
         }
 
         [data-testid="stNumberInput"] input {
-            font-size: 0.82rem;
-            text-align: center;
-            padding-left: 0.2rem;
-            padding-right: 0.2rem;
+            min-width: 0 !important;
+            width: 100% !important;
+            font-size: 0.76rem !important;
+            text-align: center !important;
+            padding-left: 0.05rem !important;
+            padding-right: 0.05rem !important;
         }
 
         [data-testid="stNumberInput"] button {
-            width: 1.25rem;
-            min-width: 1.25rem;
-            padding-left: 0;
-            padding-right: 0;
+            width: 0.9rem !important;
+            min-width: 0.9rem !important;
+            max-width: 0.9rem !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            flex: 0 0 0.9rem !important;
+        }
+
+        [data-testid="stNumberInput"] button svg {
+            width: 0.62rem !important;
+            height: 0.62rem !important;
         }
 
         .volume-box {
             min-height: 38px;
-            padding: 0 0.2rem;
-            font-size: 0.78rem;
+            padding: 0 0.05rem;
+            font-size: 0.72rem;
             white-space: nowrap;
+            overflow: hidden;
         }
     }
     </style>
