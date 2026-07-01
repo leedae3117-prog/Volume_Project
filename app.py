@@ -29,6 +29,13 @@ st.markdown(
         font-weight: 700;
     }
 
+    .set-title-inline {
+        min-height: 38px;
+        display: flex;
+        align-items: center;
+        font-weight: 700;
+    }
+
     @media (max-width: 640px) {
         .block-container {
             padding-left: 0.65rem;
@@ -36,7 +43,7 @@ st.markdown(
         }
 
         [data-testid="stHorizontalBlock"] {
-            gap: 0.45rem;
+            gap: 0.28rem;
             width: 100%;
             max-width: 100%;
         }
@@ -49,14 +56,23 @@ st.markdown(
         }
 
         [data-testid="stNumberInput"] input {
-            font-size: 0.9rem;
+            font-size: 0.82rem;
             text-align: center;
+            padding-left: 0.2rem;
+            padding-right: 0.2rem;
+        }
+
+        [data-testid="stNumberInput"] button {
+            width: 1.45rem;
+            min-width: 1.45rem;
+            padding-left: 0;
+            padding-right: 0;
         }
 
         .volume-box {
             min-height: 38px;
-            padding: 0 0.75rem;
-            font-size: 0.9rem;
+            padding: 0 0.2rem;
+            font-size: 0.78rem;
             white-space: nowrap;
         }
     }
@@ -199,9 +215,15 @@ def show_set_inputs():
     total_volume = 0
 
     for i in range(1, st.session_state.set_count + 1):
+        if i == 1:
+            header_cols = st.columns([1, 1, 1])
+            header_cols[0].caption("무게(kg)")
+            header_cols[1].caption("횟수")
+            header_cols[2].caption("볼륨")
+
         title_cols = st.columns([1, 1])
         title_cols[0].markdown(
-            f'<div class="set-title">{i}set</div>',
+            f'<div class="set-title-inline">{i}set</div>',
             unsafe_allow_html=True,
         )
 
@@ -211,25 +233,27 @@ def show_set_inputs():
                 st.session_state[f"reps_{i}"] = st.session_state.get(f"reps_{i - 1}", 0)
                 st.rerun()
 
-        input_cols = st.columns(2)
+        input_cols = st.columns([1, 1, 1])
         weight = input_cols[0].number_input(
             "무게(kg)",
             min_value=0.0,
             step=5.0,
             format="%.0f",
             key=f"weight_{i}",
+            label_visibility="collapsed",
         )
         reps = input_cols[1].number_input(
             "횟수",
             min_value=0,
             step=1,
             key=f"reps_{i}",
+            label_visibility="collapsed",
         )
         volume = weight * reps
-        st.markdown(
+        input_cols[2].markdown(
             f"""
             <div class="volume-box">
-                볼륨 {volume:,.0f} kg
+                {volume:,.0f}kg
             </div>
             """,
             unsafe_allow_html=True,
