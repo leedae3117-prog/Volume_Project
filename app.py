@@ -67,6 +67,13 @@ st.markdown(
 
 
 BODY_PARTS = ["가슴", "등", "하체", "어깨", "팔", "복근", "기타"]
+USERS = [
+    {
+        "id": "daeyeon",
+        "name": "대연",
+        "pin": str(st.secrets.get("USER_DAEYEON_PIN", "1234")),
+    }
+]
 
 
 def get_supabase():
@@ -78,10 +85,43 @@ def get_supabase():
 supabase = get_supabase()
 
 
+def current_user_id():
+    return st.session_state.get("user_id")
+
+
+def current_user_name():
+    return st.session_state.get("user_name", "")
+
+
+def login_page():
+    st.title("운동 기록")
+    st.subheader("사용자 확인")
+
+    user_names = [user["name"] for user in USERS]
+    selected_name = st.selectbox("사용자", user_names)
+    pin = st.text_input("PIN", type="password")
+
+    if st.button("입장", type="primary", use_container_width=True):
+        selected_user = next(user for user in USERS if user["name"] == selected_name)
+        if pin == selected_user["pin"]:
+            st.session_state.user_id = selected_user["id"]
+            st.session_state.user_name = selected_user["name"]
+            st.rerun()
+        else:
+            st.warning("PIN이 맞지 않습니다.")
+
+
+def require_login():
+    if not current_user_id():
+        login_page()
+        st.stop()
+
+
 def load_records():
     response = (
         supabase.table("workout_sets")
         .select("*")
+        .eq("user_id", current_user_id())
         .order("workout_date", desc=True)
         .order("exercise_name")
         .order("set_no")
@@ -94,6 +134,7 @@ def load_records_for_date(workout_date):
     response = (
         supabase.table("workout_sets")
         .select("*")
+        .eq("user_id", current_user_id())
         .eq("workout_date", workout_date.isoformat())
         .order("created_at", desc=True)
         .order("exercise_name")
@@ -116,6 +157,7 @@ def save_workout(workout_date, body_part, exercise_name, sets):
 
         rows.append(
             {
+                "user_id": current_user_id(),
                 "workout_date": workout_date.isoformat(),
                 "body_part": body_part,
                 "exercise_name": exercise_name.strip(),
@@ -137,6 +179,7 @@ def delete_workout_group(workout_date, body_part, exercise_name):
     (
         supabase.table("workout_sets")
         .delete()
+        .eq("user_id", current_user_id())
         .eq("workout_date", workout_date.isoformat())
         .eq("body_part", body_part)
         .eq("exercise_name", exercise_name)
@@ -556,7 +599,16 @@ def body_part_page():
     )
 
 
-st.title("운동 기록")
+require_login()
+
+header_cols = st.columns([1, 0.35])
+header_cols[0].title("운동 기록")
+header_cols[0].caption(f"{current_user_name()} 기록")
+if header_cols[1].button("로그아웃", use_container_width=True):
+    for key in ["user_id", "user_name"]:
+        st.session_state.pop(key, None)
+    reset_workout_form()
+    st.rerun()
 
 tab_today, tab_month, tab_body = st.tabs(["오늘 기록", "월별 기록", "부위별 기록"])
 
