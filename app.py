@@ -1,5 +1,6 @@
-from datetime import date
+from datetime import date, timedelta
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 from supabase import create_client
@@ -290,8 +291,82 @@ def monthly_page():
     records["workout_date"] = pd.to_datetime(records["workout_date"]).dt.date
     records["month"] = records["workout_date"].map(lambda value: value.strftime("%Y-%m"))
 
-    selected_month = st.selectbox("월 선택", sorted(records["month"].unique(), reverse=True))
+    month_options = sorted(records["month"].unique(), reverse=True)
+    if "selected_month_select" not in st.session_state or st.session_state.selected_month_select not in month_options:
+        st.session_state.selected_month_select = month_options[0]
+
+    month_index = month_options.index(st.session_state.selected_month_select)
+    nav_cols = st.columns([1, 1.2, 1])
+    if nav_cols[0].button("◀ 이전 달", use_container_width=True) and month_index < len(month_options) - 1:
+        st.session_state.selected_month_select = month_options[month_index + 1]
+        st.rerun()
+    nav_cols[1].markdown(f"**{st.session_state.selected_month_select}**")
+    if nav_cols[2].button("다음 달 ▶", use_container_width=True) and month_index > 0:
+        st.session_state.selected_month_select = month_options[month_index - 1]
+        st.rerun()
+
+    selected_month = st.selectbox(
+        "월 선택",
+        month_options,
+        index=month_options.index(st.session_state.selected_month_select),
+        key="selected_month_select",
+    )
     month_records = records[records["month"] == selected_month]
+
+    month_start = pd.to_datetime(f"{selected_month}-01").date()
+    month_end = (pd.Timestamp(month_start) + pd.offsets.MonthEnd(0)).date()
+
+    weekly_records = records.copy()
+    weekly_records["week_start"] = weekly_records["workout_date"].map(
+        lambda value: value - timedelta(days=value.weekday())
+    )
+    weekly_records["week_end"] = weekly_records["week_start"].map(
+        lambda value: value + timedelta(days=6)
+    )
+    weekly_records = weekly_records[
+        (weekly_records["week_start"] <= month_end)
+        & (weekly_records["week_end"] >= month_start)
+    ]
+
+    st.markdown("### 주간 기록")
+    if weekly_records.empty:
+        st.info("선택한 월의 주간 기록이 없습니다.")
+    else:
+        weekdays = ["월", "화", "수", "목", "금", "토", "일"]
+        weekly_summary = (
+            weekly_records.groupby(["week_start", "week_end"], as_index=False)["volume"]
+            .sum()
+            .sort_values("week_start")
+        )
+
+        for _, week in weekly_summary.iterrows():
+            week_start = week["week_start"]
+            week_end = week["week_end"]
+            week_total = week["volume"]
+            label = f"{week_start.month}/{week_start.day} ~ {week_end.month}/{week_end.day} · {week_total:,.0f}kg"
+
+            with st.expander(label):
+                rows = []
+                week_detail = weekly_records[
+                    (weekly_records["week_start"] == week_start)
+                    & (weekly_records["week_end"] == week_end)
+                ]
+                daily_total = week_detail.groupby("workout_date")["volume"].sum().to_dict()
+
+                for day_offset, weekday in enumerate(weekdays):
+                    current_day = week_start + timedelta(days=day_offset)
+                    volume = daily_total.get(current_day, 0)
+                    rows.append(
+                        {
+                            "요일": weekday,
+                            "날짜": current_day.strftime("%m/%d"),
+                            "볼륨": f"{volume:,.0f}kg" if volume else "휴식",
+                        }
+                    )
+
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    st.markdown("### 날짜별 기록")
 
     daily = (
         month_records.groupby(["workout_date", "body_part"], as_index=False)["volume"]
@@ -364,7 +439,32 @@ def body_part_page():
         diff = latest - previous
         st.metric("직전 운동 대비", f"{diff:+,.0f} kg")
 
-    st.line_chart(daily.sort_values("workout_date").set_index("workout_date")["volume"])
+    chart_data = daily.sort_values("workout_date").tail(8).copy()
+    chart_data["날짜"] = chart_data["workout_date"].map(lambda value: value.strftime("%m/%d"))
+    chart_data["표시값"] = chart_data["volume"].map(lambda value: f"{value:,.0f}")
+
+    bars = (
+        alt.Chart(chart_data)
+        .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+        .encode(
+            x=alt.X("날짜:N", title=None, sort=None),
+            y=alt.Y("volume:Q", title="볼륨"),
+            tooltip=[
+                alt.Tooltip("날짜:N", title="날짜"),
+                alt.Tooltip("volume:Q", title="볼륨", format=",.0f"),
+            ],
+        )
+    )
+    labels = (
+        alt.Chart(chart_data)
+        .mark_text(dy=-8, fontSize=12)
+        .encode(
+            x=alt.X("날짜:N", sort=None),
+            y=alt.Y("volume:Q"),
+            text="표시값:N",
+        )
+    )
+    st.altair_chart((bars + labels).properties(height=260), use_container_width=True)
 
     latest_date = daily.iloc[0]["workout_date"]
     st.markdown(f"**최근 {selected_part} 운동 상세 · {latest_date}**")
