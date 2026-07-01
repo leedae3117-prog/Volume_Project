@@ -371,9 +371,16 @@ def today_page():
     if "save_message" in st.session_state:
         st.success(st.session_state.pop("save_message"))
 
+    today = date.today()
+    if not st.session_state.get("edit_mode", False):
+        last_access_day = st.session_state.get("workout_date_access_day")
+        if last_access_day != today:
+            st.session_state.workout_date = today
+            st.session_state.workout_date_access_day = today
+
     st.subheader("오늘 운동 기록")
 
-    workout_date = st.date_input("날짜", value=date.today(), key="workout_date")
+    workout_date = st.date_input("날짜", value=today, key="workout_date")
     body_part = st.selectbox("부위", BODY_PARTS, key="body_part")
     exercise_name = st.text_input("운동명", placeholder="예: 벤치프레스", key="exercise_name")
 
