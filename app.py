@@ -89,6 +89,19 @@ def load_records():
     return pd.DataFrame(response.data or [])
 
 
+def load_records_for_date(workout_date):
+    response = (
+        supabase.table("workout_sets")
+        .select("*")
+        .eq("workout_date", workout_date.isoformat())
+        .order("created_at", desc=True)
+        .order("exercise_name")
+        .order("set_no")
+        .execute()
+    )
+    return pd.DataFrame(response.data or [])
+
+
 def save_workout(workout_date, body_part, exercise_name, sets):
     rows = []
 
@@ -121,7 +134,16 @@ def save_workout(workout_date, body_part, exercise_name, sets):
 
 def show_set_inputs():
     if "set_count" not in st.session_state:
-        st.session_state.set_count = 3
+        st.session_state.set_count = 4
+
+    set_cols = st.columns([1, 1, 1.2])
+    if set_cols[0].button("set ▲", use_container_width=True):
+        st.session_state.set_count = min(30, st.session_state.set_count + 1)
+        st.rerun()
+    if set_cols[1].button("set ▼", use_container_width=True):
+        st.session_state.set_count = max(1, st.session_state.set_count - 1)
+        st.rerun()
+    set_cols[2].markdown(f"**{st.session_state.set_count}set**")
 
     sets = []
     total_volume = 0
@@ -170,12 +192,73 @@ def show_set_inputs():
     return sets
 
 
+def reset_workout_form():
+    st.session_state.set_count = 4
+    st.session_state.exercise_name = ""
+
+    for i in range(1, 31):
+        st.session_state[f"weight_{i}"] = 0.0
+        st.session_state[f"reps_{i}"] = 0
+
+
+def show_date_records(workout_date):
+    st.markdown("### 오늘 저장 기록")
+
+    records = load_records_for_date(workout_date)
+    if records.empty:
+        st.info("아직 오늘 저장된 기록이 없습니다.")
+        return
+
+    total = records["volume"].sum()
+    st.metric("오늘 총 볼륨", f"{total:,.0f} kg")
+
+    summary = (
+        records.groupby(["body_part", "exercise_name"], as_index=False)["volume"]
+        .sum()
+        .sort_values("volume", ascending=False)
+    )
+    st.dataframe(
+        summary.rename(
+            columns={
+                "body_part": "부위",
+                "exercise_name": "운동명",
+                "volume": "볼륨",
+            }
+        ),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    with st.expander("세트별 상세"):
+        st.dataframe(
+            records[["body_part", "exercise_name", "set_no", "weight", "reps", "volume"]]
+            .rename(
+                columns={
+                    "body_part": "부위",
+                    "exercise_name": "운동명",
+                    "set_no": "세트",
+                    "weight": "무게",
+                    "reps": "횟수",
+                    "volume": "볼륨",
+                }
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+
 def today_page():
+    if st.session_state.pop("reset_workout_form", False):
+        reset_workout_form()
+
+    if "save_message" in st.session_state:
+        st.success(st.session_state.pop("save_message"))
+
     st.subheader("오늘 운동 기록")
 
     workout_date = st.date_input("날짜", value=date.today())
     body_part = st.selectbox("부위", BODY_PARTS)
-    exercise_name = st.text_input("운동명", placeholder="예: 벤치프레스")
+    exercise_name = st.text_input("운동명", placeholder="예: 벤치프레스", key="exercise_name")
 
     sets = show_set_inputs()
 
@@ -189,7 +272,11 @@ def today_page():
         if saved_count == 0:
             st.warning("무게와 횟수가 입력된 세트가 없습니다.")
         else:
-            st.success(f"{saved_count}세트를 저장했습니다.")
+            st.session_state.save_message = f"{saved_count}세트를 저장했습니다."
+            st.session_state.reset_workout_form = True
+            st.rerun()
+
+    show_date_records(workout_date)
 
 
 def monthly_page():
