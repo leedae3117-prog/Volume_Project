@@ -133,6 +133,17 @@ def save_workout(workout_date, body_part, exercise_name, sets):
     return len(rows)
 
 
+def delete_workout_group(workout_date, body_part, exercise_name):
+    (
+        supabase.table("workout_sets")
+        .delete()
+        .eq("workout_date", workout_date.isoformat())
+        .eq("body_part", body_part)
+        .eq("exercise_name", exercise_name)
+        .execute()
+    )
+
+
 def show_set_inputs():
     if "set_count" not in st.session_state:
         st.session_state.set_count = 4
@@ -196,10 +207,40 @@ def show_set_inputs():
 def reset_workout_form():
     st.session_state.set_count = 4
     st.session_state.exercise_name = ""
+    st.session_state.edit_mode = False
+    st.session_state.edit_original_date = None
+    st.session_state.edit_original_body_part = None
+    st.session_state.edit_original_exercise_name = None
 
     for i in range(1, 31):
         st.session_state[f"weight_{i}"] = 0.0
         st.session_state[f"reps_{i}"] = 0
+
+
+def load_workout_group_into_form(workout_date, body_part, exercise_name, records):
+    group = records[
+        (records["workout_date"] == workout_date)
+        & (records["body_part"] == body_part)
+        & (records["exercise_name"] == exercise_name)
+    ].sort_values("set_no")
+
+    st.session_state.workout_date = workout_date
+    st.session_state.body_part = body_part
+    st.session_state.exercise_name = exercise_name
+    st.session_state.set_count = max(4, min(30, int(group["set_no"].max())))
+    st.session_state.edit_mode = True
+    st.session_state.edit_original_date = workout_date
+    st.session_state.edit_original_body_part = body_part
+    st.session_state.edit_original_exercise_name = exercise_name
+
+    for i in range(1, 31):
+        st.session_state[f"weight_{i}"] = 0.0
+        st.session_state[f"reps_{i}"] = 0
+
+    for _, row in group.iterrows():
+        set_no = int(row["set_no"])
+        st.session_state[f"weight_{set_no}"] = float(row["weight"])
+        st.session_state[f"reps_{set_no}"] = int(row["reps"])
 
 
 def show_date_records(workout_date):
@@ -218,17 +259,19 @@ def show_date_records(workout_date):
         .sum()
         .sort_values("volume", ascending=False)
     )
-    st.dataframe(
-        summary.rename(
-            columns={
-                "body_part": "부위",
-                "exercise_name": "운동명",
-                "volume": "볼륨",
-            }
-        ),
-        use_container_width=True,
-        hide_index=True,
-    )
+    for _, row in summary.iterrows():
+        item_cols = st.columns([1.2, 1.8, 1.2, 0.9])
+        item_cols[0].markdown(f"**{row['body_part']}**")
+        item_cols[1].markdown(row["exercise_name"])
+        item_cols[2].markdown(f"{row['volume']:,.0f}kg")
+        if item_cols[3].button("수정", key=f"edit_{workout_date}_{row['body_part']}_{row['exercise_name']}"):
+            load_workout_group_into_form(
+                workout_date,
+                row["body_part"],
+                row["exercise_name"],
+                records,
+            )
+            st.rerun()
 
     with st.expander("세트별 상세"):
         st.dataframe(
@@ -257,23 +300,44 @@ def today_page():
 
     st.subheader("오늘 운동 기록")
 
-    workout_date = st.date_input("날짜", value=date.today())
-    body_part = st.selectbox("부위", BODY_PARTS)
+    workout_date = st.date_input("날짜", value=date.today(), key="workout_date")
+    body_part = st.selectbox("부위", BODY_PARTS, key="body_part")
     exercise_name = st.text_input("운동명", placeholder="예: 벤치프레스", key="exercise_name")
 
     sets = show_set_inputs()
 
-    if st.button("운동 저장", type="primary", use_container_width=True):
+    is_editing = st.session_state.get("edit_mode", False)
+    if is_editing:
+        st.info("수정 중입니다. 저장하면 기존 기록이 현재 입력값으로 교체됩니다.")
+        if st.button("수정 취소", use_container_width=True):
+            reset_workout_form()
+            st.rerun()
+
+    save_label = "수정 저장" if is_editing else "운동 저장"
+    if st.button(save_label, type="primary", use_container_width=True):
         if not exercise_name.strip():
             st.warning("운동명을 입력해주세요.")
             return
+
+        if not any(item.get("weight", 0) > 0 and item.get("reps", 0) > 0 for item in sets):
+            st.warning("무게와 횟수가 입력된 세트가 없습니다.")
+            return
+
+        if is_editing:
+            delete_workout_group(
+                st.session_state.edit_original_date,
+                st.session_state.edit_original_body_part,
+                st.session_state.edit_original_exercise_name,
+            )
 
         saved_count = save_workout(workout_date, body_part, exercise_name, sets)
 
         if saved_count == 0:
             st.warning("무게와 횟수가 입력된 세트가 없습니다.")
         else:
-            st.session_state.save_message = f"{saved_count}세트를 저장했습니다."
+            st.session_state.save_message = (
+                f"{saved_count}세트로 수정했습니다." if is_editing else f"{saved_count}세트를 저장했습니다."
+            )
             st.session_state.reset_workout_form = True
             st.rerun()
 
