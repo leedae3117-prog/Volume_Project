@@ -127,7 +127,17 @@ def show_set_inputs():
     total_volume = 0
 
     for i in range(1, st.session_state.set_count + 1):
-        st.markdown(f'<div class="set-title">{i}set</div>', unsafe_allow_html=True)
+        title_cols = st.columns([1, 1])
+        title_cols[0].markdown(
+            f'<div class="set-title">{i}set</div>',
+            unsafe_allow_html=True,
+        )
+
+        if i > 1:
+            if title_cols[1].button("Before =", key=f"copy_before_{i}", use_container_width=True):
+                st.session_state[f"weight_{i}"] = st.session_state.get(f"weight_{i - 1}", 0.0)
+                st.session_state[f"reps_{i}"] = st.session_state.get(f"reps_{i - 1}", 0)
+                st.rerun()
 
         input_cols = st.columns(2)
         weight = input_cols[0].number_input(
