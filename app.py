@@ -265,12 +265,11 @@ def show_date_records(workout_date):
         item_cols[1].markdown(row["exercise_name"])
         item_cols[2].markdown(f"{row['volume']:,.0f}kg")
         if item_cols[3].button("수정", key=f"edit_{workout_date}_{row['body_part']}_{row['exercise_name']}"):
-            load_workout_group_into_form(
-                workout_date,
-                row["body_part"],
-                row["exercise_name"],
-                records,
-            )
+            st.session_state.pending_edit = {
+                "workout_date": workout_date.isoformat(),
+                "body_part": row["body_part"],
+                "exercise_name": row["exercise_name"],
+            }
             st.rerun()
 
     with st.expander("세트별 상세"):
@@ -294,6 +293,18 @@ def show_date_records(workout_date):
 def today_page():
     if st.session_state.pop("reset_workout_form", False):
         reset_workout_form()
+
+    pending_edit = st.session_state.pop("pending_edit", None)
+    if pending_edit:
+        edit_date = date.fromisoformat(pending_edit["workout_date"])
+        edit_records = load_records_for_date(edit_date)
+        edit_records["workout_date"] = pd.to_datetime(edit_records["workout_date"]).dt.date
+        load_workout_group_into_form(
+            edit_date,
+            pending_edit["body_part"],
+            pending_edit["exercise_name"],
+            edit_records,
+        )
 
     if "save_message" in st.session_state:
         st.success(st.session_state.pop("save_message"))
