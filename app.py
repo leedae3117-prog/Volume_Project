@@ -71,9 +71,8 @@ USERS = [
     {
         "id": "daeyeon",
         "name": "대연",
-        "pin": str(st.secrets.get("USER_DAEYEON_PIN", "1234")),
     }
-]
+] + [{"id": f"user{i}", "name": f"사용자 {i}"} for i in range(1, 11)]
 
 
 def get_supabase():
@@ -95,20 +94,16 @@ def current_user_name():
 
 def login_page():
     st.title("운동 기록")
-    st.subheader("사용자 확인")
+    st.subheader("사용자 선택")
 
     user_names = [user["name"] for user in USERS]
     selected_name = st.selectbox("사용자", user_names)
-    pin = st.text_input("PIN", type="password")
 
     if st.button("입장", type="primary", use_container_width=True):
         selected_user = next(user for user in USERS if user["name"] == selected_name)
-        if pin == selected_user["pin"]:
-            st.session_state.user_id = selected_user["id"]
-            st.session_state.user_name = selected_user["name"]
-            st.rerun()
-        else:
-            st.warning("PIN이 맞지 않습니다.")
+        st.session_state.user_id = selected_user["id"]
+        st.session_state.user_name = selected_user["name"]
+        st.rerun()
 
 
 def require_login():
