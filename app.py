@@ -1,9 +1,17 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import altair as alt
 import pandas as pd
 import streamlit as st
 from supabase import create_client
+
+
+KOREA_TZ = ZoneInfo("Asia/Seoul")
+
+
+def korea_today():
+    return datetime.now(KOREA_TZ).date()
 
 
 st.set_page_config(page_title="운동 기록", page_icon="🏋️", layout="centered")
@@ -371,7 +379,7 @@ def today_page():
     if "save_message" in st.session_state:
         st.success(st.session_state.pop("save_message"))
 
-    today = date.today()
+    today = korea_today()
     if not st.session_state.get("edit_mode", False):
         last_access_day = st.session_state.get("workout_date_access_day")
         if last_access_day != today:
