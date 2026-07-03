@@ -118,6 +118,7 @@ def current_user_name():
 
 def login_page():
     st.title("운동 기록")
+    st.markdown("## 지민이 최고")
     st.subheader("사용자 선택")
 
     user_names = [user["name"] for user in USERS]
