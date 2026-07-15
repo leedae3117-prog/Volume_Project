@@ -412,8 +412,18 @@ function bindEvents() {
     renderMonth();
   });
 
-  $("#setList").addEventListener("click", (event) => {
-    const target = event.target;
+  let lastSetActionAt = 0;
+  function handleSetAction(event) {
+    const target = event.target.closest("button");
+    if (!target || !$("#setList").contains(target)) return;
+
+    if (event.type === "touchend") {
+      event.preventDefault();
+      lastSetActionAt = Date.now();
+    } else if (Date.now() - lastSetActionAt < 450) {
+      return;
+    }
+
     if (target.dataset.plusWeight) changeValue(Number(target.dataset.plusWeight), "weight", 5);
     if (target.dataset.minusWeight) changeValue(Number(target.dataset.minusWeight), "weight", -5);
     if (target.dataset.plusReps) changeValue(Number(target.dataset.plusReps), "reps", 1);
@@ -423,7 +433,10 @@ function bindEvents() {
       sets[index] = { ...sets[index - 1] };
       renderSets();
     }
-  });
+  }
+
+  $("#setList").addEventListener("click", handleSetAction);
+  $("#setList").addEventListener("touchend", handleSetAction, { passive: false });
 
   $("#setList").addEventListener("input", (event) => {
     const target = event.target;
