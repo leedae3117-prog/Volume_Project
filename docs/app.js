@@ -1,6 +1,7 @@
 const BODY_PARTS = ["가슴", "등", "하체", "어깨", "팔", "복근", "기타"];
 const USER_ID = "daeyeon";
-const SETTINGS_KEY = "volumeGrowthSupabase";
+const SUPABASE_URL = "https://fxvrdevsyxpvtvpwiedj.supabase.co";
+const SUPABASE_KEY = "sb_publishable_T6DuYZZ0LHoJFn6hdEU3fQ_5-oGy2D3";
 const MAX_SETS = 30;
 const MIN_SETS = 1;
 
@@ -51,30 +52,9 @@ function toast(message) {
   setTimeout(() => el.classList.add("hidden"), 2200);
 }
 
-function loadSettings() {
-  try {
-    return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function saveSettings(settings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
-
 function connectSupabase() {
-  const settings = loadSettings();
-  $("#supabaseUrlInput").value = settings.url || "";
-  $("#supabaseKeyInput").value = settings.key || "";
-
-  if (!settings.url || !settings.key || !window.supabase) {
-    $("#settingsPanel").classList.remove("hidden");
-    return false;
-  }
-
-  db = window.supabase.createClient(settings.url, settings.key);
-  $("#settingsPanel").classList.add("hidden");
+  if (!window.supabase) return false;
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   return true;
 }
 
@@ -397,15 +377,6 @@ async function refreshAll() {
 }
 
 function bindEvents() {
-  $("#settingsButton").addEventListener("click", () => $("#settingsPanel").classList.toggle("hidden"));
-  $("#saveSettingsButton").addEventListener("click", async () => {
-    saveSettings({ url: $("#supabaseUrlInput").value.trim(), key: $("#supabaseKeyInput").value.trim() });
-    if (connectSupabase()) {
-      toast("Supabase 연결을 저장했습니다.");
-      await refreshAll();
-    }
-  });
-
   $$(".nav-tabs button").forEach((button) => {
     button.addEventListener("click", async () => {
       $$(".nav-tabs button").forEach((item) => item.classList.remove("active"));
@@ -462,7 +433,7 @@ function bindEvents() {
 
   $("#saveWorkoutButton").addEventListener("click", async () => {
     try {
-      if (!db && !connectSupabase()) return toast("Supabase 설정을 먼저 저장해주세요.");
+      if (!db && !connectSupabase()) return toast("Supabase 연결에 실패했습니다.");
       const rows = rowsForSave();
       if (!$("#exerciseName").value.trim()) return toast("운동명을 입력해주세요.");
       if (!rows.length) return toast("무게와 횟수가 입력된 세트가 없습니다.");
