@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f1117" />
+    <title>운동 기록</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <h1>운동 기록</h1>
+          <p>지민이 최고</p>
+        </div>
+        <button class="icon-button" id="settingsButton" type="button" aria-label="Supabase 설정">설정</button>
+      </header>
+
+      <section class="panel hidden" id="settingsPanel">
+        <h2>Supabase 연결</h2>
+        <label>
+          URL
+          <input id="supabaseUrlInput" placeholder="https://xxxx.supabase.co" />
+        </label>
+        <label>
+          anon public key
+          <input id="supabaseKeyInput" placeholder="eyJ..." />
+        </label>
+        <button class="primary" id="saveSettingsButton" type="button">저장</button>
+        <p class="muted">한 번 저장하면 이 휴대폰 브라우저에만 보관됩니다.</p>
+      </section>
+
+      <nav class="nav-tabs" aria-label="메뉴">
+        <button class="active" data-page="today" type="button">운동 기록</button>
+        <button data-page="month" type="button">주간 기록</button>
+        <button data-page="part" type="button">부위별 기록</button>
+      </nav>
+
+      <section class="page" id="todayPage">
+        <div class="form-grid">
+          <label>
+            날짜
+            <input id="workoutDate" type="date" />
+          </label>
+          <label>
+            부위
+            <select id="bodyPart"></select>
+          </label>
+          <label>
+            운동명
+            <input id="exerciseName" placeholder="예: 벤치프레스" />
+          </label>
+        </div>
+
+        <div class="set-toolbar">
+          <button id="addSetButton" type="button">set ▲</button>
+          <button id="removeSetButton" type="button">set ▼</button>
+          <strong id="setCountLabel">4set</strong>
+        </div>
+
+        <div class="set-head">
+          <span></span>
+          <span>무게(kg)</span>
+          <span>횟수</span>
+          <span>볼륨</span>
+        </div>
+        <div id="setList"></div>
+
+        <div class="total-box">
+          <span>이 운동 총 볼륨</span>
+          <strong id="exerciseVolume">0 kg</strong>
+        </div>
+
+        <div class="action-row">
+          <button class="ghost hidden" id="cancelEditButton" type="button">수정 취소</button>
+          <button class="primary" id="saveWorkoutButton" type="button">운동 저장</button>
+        </div>
+
+        <section class="records">
+          <h2>오늘 저장 기록</h2>
+          <div id="todaySummary"></div>
+          <details>
+            <summary>세트별 상세</summary>
+            <div id="todayDetail"></div>
+          </details>
+        </section>
+      </section>
+
+      <section class="page hidden" id="monthPage">
+        <div class="month-nav">
+          <button id="prevMonthButton" type="button">이전 달</button>
+          <strong id="monthLabel"></strong>
+          <button id="nextMonthButton" type="button">다음 달</button>
+        </div>
+        <h2>주간 기록</h2>
+        <div id="weeklyList"></div>
+        <h2>날짜별 기록</h2>
+        <div id="dailyList"></div>
+      </section>
+
+      <section class="page hidden" id="partPage">
+        <label>
+          부위 선택
+          <select id="partFilter"></select>
+        </label>
+        <div id="partStats"></div>
+        <div class="bar-chart" id="partChart"></div>
+        <div id="partDetail"></div>
+      </section>
+
+      <div class="toast hidden" id="toast"></div>
+    </main>
+  </body>
+</html>
