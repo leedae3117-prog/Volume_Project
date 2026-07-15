@@ -108,12 +108,15 @@ def get_supabase():
 supabase = get_supabase()
 
 
+DEFAULT_USER = USERS[0]
+
+
 def current_user_id():
-    return st.session_state.get("user_id")
+    return st.session_state.get("user_id", DEFAULT_USER["id"])
 
 
 def current_user_name():
-    return st.session_state.get("user_name", "")
+    return st.session_state.get("user_name", DEFAULT_USER["name"])
 
 
 def login_page():
@@ -132,9 +135,8 @@ def login_page():
 
 
 def require_login():
-    if not current_user_id():
-        login_page()
-        st.stop()
+    st.session_state.setdefault("user_id", DEFAULT_USER["id"])
+    st.session_state.setdefault("user_name", DEFAULT_USER["name"])
 
 
 def load_records():
@@ -636,22 +638,21 @@ def body_part_page():
 
 require_login()
 
-header_cols = st.columns([1, 0.35])
-header_cols[0].title("운동 기록")
-header_cols[0].caption(f"{current_user_name()} 기록")
-if header_cols[1].button("로그아웃", use_container_width=True):
-    for key in ["user_id", "user_name"]:
-        st.session_state.pop(key, None)
-    reset_workout_form()
-    st.rerun()
+st.title("운동 기록")
+st.markdown("## 지민이 최고")
+st.caption(f"{current_user_name()} 기록")
 
-tab_today, tab_month, tab_body = st.tabs(["오늘 기록", "월별 기록", "부위별 기록"])
+selected_page = st.radio(
+    "메뉴",
+    ["오늘 기록", "월별 기록", "부위별 기록"],
+    horizontal=True,
+    label_visibility="collapsed",
+    key="main_page",
+)
 
-with tab_today:
+if selected_page == "오늘 기록":
     today_page()
-
-with tab_month:
+elif selected_page == "월별 기록":
     monthly_page()
-
-with tab_body:
+else:
     body_part_page()
