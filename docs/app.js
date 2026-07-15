@@ -111,13 +111,30 @@ function resetSets(nextCount = 4) {
   renderSets();
 }
 
-function setValue(index, key, value) {
+function updateTotalsOnly() {
+  const total = sets.reduce((sum, item) => sum + item.weight * item.reps, 0);
+  $("#exerciseVolume").textContent = `${total.toLocaleString("ko-KR")} kg`;
+}
+
+function updateSetVolume(index) {
+  const row = document.querySelector(`[data-set-row="${index}"]`);
+  if (!row) return;
+  const volume = sets[index].weight * sets[index].reps;
+  row.querySelector(".volume-cell").textContent = formatKg(volume);
+  updateTotalsOnly();
+}
+
+function setValue(index, key, value, shouldRender = true) {
   sets[index][key] = Math.max(0, Number(value || 0));
-  renderSets();
+  if (shouldRender) {
+    renderSets();
+  } else {
+    updateSetVolume(index);
+  }
 }
 
 function changeValue(index, key, delta) {
-  setValue(index, key, sets[index][key] + delta);
+  setValue(index, key, sets[index][key] + delta, true);
 }
 
 function renderSets() {
@@ -132,7 +149,7 @@ function renderSets() {
 
       return `
         ${before}
-        <div class="set-row">
+        <div class="set-row" data-set-row="${index}">
           <div class="set-label">${no}set</div>
           <div class="number-box">
             <button data-minus-weight="${index}" type="button">-</button>
@@ -150,8 +167,7 @@ function renderSets() {
     })
     .join("");
 
-  const total = sets.reduce((sum, item) => sum + item.weight * item.reps, 0);
-  $("#exerciseVolume").textContent = `${total.toLocaleString("ko-KR")} kg`;
+  updateTotalsOnly();
 }
 
 function resizeSets(nextCount) {
@@ -440,8 +456,8 @@ function bindEvents() {
 
   $("#setList").addEventListener("input", (event) => {
     const target = event.target;
-    if (target.dataset.weight) setValue(Number(target.dataset.weight), "weight", target.value);
-    if (target.dataset.reps) setValue(Number(target.dataset.reps), "reps", target.value);
+    if (target.dataset.weight) setValue(Number(target.dataset.weight), "weight", target.value, false);
+    if (target.dataset.reps) setValue(Number(target.dataset.reps), "reps", target.value, false);
   });
 
   $("#saveWorkoutButton").addEventListener("click", async () => {
