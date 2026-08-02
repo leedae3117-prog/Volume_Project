@@ -148,6 +148,16 @@ h2 {
   align-items: center;
 }
 
+
+.unit-toggle {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .set-head {
   margin-bottom: 8px;
   color: var(--muted);

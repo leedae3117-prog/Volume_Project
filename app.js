@@ -4,6 +4,7 @@ const SUPABASE_URL = "https://fxvrdevsyxpvtvpwiedj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_T6DuYZZ0LHoJFn6hdEU3fQ_5-oGy2D3";
 const MAX_SETS = 30;
 const MIN_SETS = 1;
+const LB_PER_KG = 2.2046226218;
 
 let db = null;
 let setCount = 4;
@@ -11,6 +12,7 @@ let sets = [];
 let editTarget = null;
 let currentMonth = "";
 let recordsCache = [];
+let weightUnit = "kg";
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -43,6 +45,26 @@ function formatDateText(date) {
 
 function formatKg(value) {
   return `${Number(value || 0).toLocaleString("ko-KR")}kg`;
+}
+
+function formatWeightInput(weightKg) {
+  const value = weightUnit === "lb" ? weightKg * LB_PER_KG : weightKg;
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded.toFixed(1));
+}
+
+function weightInputToKg(value) {
+  const number = Math.max(0, Number(value || 0));
+  return weightUnit === "lb" ? number / LB_PER_KG : number;
+}
+
+function weightStepKg() {
+  return weightUnit === "lb" ? 5 / LB_PER_KG : 5;
+}
+
+function updateWeightUnitLabel() {
+  const label = $("#weightUnitLabel");
+  if (label) label.textContent = `무게(${weightUnit})`;
 }
 
 function toast(message) {
@@ -138,6 +160,7 @@ function changeValue(index, key, delta) {
 }
 
 function renderSets() {
+  updateWeightUnitLabel();
   $("#setCountLabel").textContent = `${setCount}set`;
   $("#setList").innerHTML = sets
     .map((item, index) => {
@@ -153,7 +176,7 @@ function renderSets() {
           <div class="set-label">${no}set</div>
           <div class="number-box">
             <button data-minus-weight="${index}" type="button">-</button>
-            <input data-weight="${index}" inputmode="decimal" value="${item.weight}" />
+            <input data-weight="${index}" inputmode="decimal" value="${formatWeightInput(item.weight)}" />
             <button data-plus-weight="${index}" type="button">+</button>
           </div>
           <div class="number-box">
@@ -319,8 +342,11 @@ function renderMonth() {
     if (weekStart.slice(0, 7) !== currentMonth && weekEnd.slice(0, 7) !== currentMonth) continue;
     if (!weekMap.has(weekStart)) weekMap.set(weekStart, { total: 0, days: new Map() });
     const week = weekMap.get(weekStart);
-    week.total += Number(row.volume || 0);
-    week.days.set(row.workout_date, (week.days.get(row.workout_date) || 0) + Number(row.volume || 0));
+    const volume = Number(row.volume || 0);
+    week.total += volume;
+    if (!week.days.has(row.workout_date)) week.days.set(row.workout_date, { parts: new Map() });
+    const dayRecord = week.days.get(row.workout_date);
+    dayRecord.parts.set(row.body_part, (dayRecord.parts.get(row.body_part) || 0) + volume);
   }
 
   $("#weeklyList").innerHTML = [...weekMap.entries()].sort().map(([weekStart, week]) => `
@@ -328,8 +354,11 @@ function renderMonth() {
       <summary>${dateLabel(weekStart)} ~ ${dateLabel(addDays(weekStart, 6))} · ${formatKg(week.total)}</summary>
       ${["월", "화", "수", "목", "금", "토", "일"].map((label, index) => {
         const day = addDays(weekStart, index);
-        const value = week.days.get(day) || 0;
-        return `<p>${label} ${dateLabel(day)} · ${value ? formatKg(value) : "휴식"}</p>`;
+        const dayRecord = week.days.get(day);
+        const detail = dayRecord
+          ? [...dayRecord.parts.entries()].sort((a, b) => b[1] - a[1]).map(([part, value]) => `${part} ${formatKg(value)}`).join(", ")
+          : "휴식";
+        return `<p>${label} ${dateLabel(day)} · ${detail}</p>`;
       }).join("")}
     </details>
   `).join("") || `<p class="muted">선택한 월의 기록이 없습니다.</p>`;
@@ -348,6 +377,25 @@ function renderMonth() {
       </details>
     `;
   }).join("") || `<p class="muted">선택한 월의 날짜별 기록이 없습니다.</p>`;
+}
+
+function renderMonthlyPartChart(monthRecords) {
+  const partMap = new Map();
+  for (const row of monthRecords) {
+    partMap.set(row.body_part, (partMap.get(row.body_part) || 0) + Number(row.volume || 0));
+  }
+
+  const chartData = BODY_PARTS.map((part) => [part, partMap.get(part) || 0]).filter(([, value]) => value > 0);
+  const max = Math.max(...chartData.map(([, value]) => value), 1);
+  $("#monthlyPartChart").innerHTML = chartData.length
+    ? chartData.map(([part, value]) => `
+        <div class="bar">
+          <strong>${part}</strong>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(8, (value / max) * 100)}%">${formatKg(value)}</div></div>
+          <span>${formatKg(value)}</span>
+        </div>
+      `).join("")
+    : `<p class="muted">선택한 월의 기록이 없습니다.</p>`;
 }
 
 function renderPartPage() {
@@ -415,6 +463,10 @@ function bindEvents() {
   $("#removeSetButton").addEventListener("click", () => resizeSets(setCount - 1));
   $("#cancelEditButton").addEventListener("click", resetForm);
   $("#partFilter").addEventListener("change", renderPartPage);
+  $("#weightUnitLabel").addEventListener("click", () => {
+    weightUnit = weightUnit === "kg" ? "lb" : "kg";
+    renderSets();
+  });
   $("#prevMonthButton").addEventListener("click", () => {
     const date = parseDateText(`${currentMonth}-01`);
     date.setUTCMonth(date.getUTCMonth() - 1);
@@ -429,19 +481,26 @@ function bindEvents() {
   });
 
   let lastSetActionAt = 0;
+  let setTouchStart = null;
   function handleSetAction(event) {
     const target = event.target.closest("button");
     if (!target || !$("#setList").contains(target)) return;
 
     if (event.type === "touchend") {
-      event.preventDefault();
+      const touch = event.changedTouches[0];
+      const moved = setTouchStart && touch && (
+        Math.abs(touch.clientX - setTouchStart.x) > 12 || Math.abs(touch.clientY - setTouchStart.y) > 12
+      );
+      setTouchStart = null;
       lastSetActionAt = Date.now();
+      if (moved) return;
+      event.preventDefault();
     } else if (Date.now() - lastSetActionAt < 450) {
       return;
     }
 
-    if (target.dataset.plusWeight) changeValue(Number(target.dataset.plusWeight), "weight", 5);
-    if (target.dataset.minusWeight) changeValue(Number(target.dataset.minusWeight), "weight", -5);
+    if (target.dataset.plusWeight) changeValue(Number(target.dataset.plusWeight), "weight", weightStepKg());
+    if (target.dataset.minusWeight) changeValue(Number(target.dataset.minusWeight), "weight", -weightStepKg());
     if (target.dataset.plusReps) changeValue(Number(target.dataset.plusReps), "reps", 1);
     if (target.dataset.minusReps) changeValue(Number(target.dataset.minusReps), "reps", -1);
     if (target.dataset.before) {
@@ -451,12 +510,16 @@ function bindEvents() {
     }
   }
 
+  $("#setList").addEventListener("touchstart", (event) => {
+    const touch = event.changedTouches[0];
+    setTouchStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }, { passive: true });
   $("#setList").addEventListener("click", handleSetAction);
   $("#setList").addEventListener("touchend", handleSetAction, { passive: false });
 
   $("#setList").addEventListener("input", (event) => {
     const target = event.target;
-    if (target.dataset.weight) setValue(Number(target.dataset.weight), "weight", target.value, false);
+    if (target.dataset.weight) setValue(Number(target.dataset.weight), "weight", weightInputToKg(target.value), false);
     if (target.dataset.reps) setValue(Number(target.dataset.reps), "reps", target.value, false);
   });
 

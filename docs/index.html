@@ -7,7 +7,7 @@
     <title>운동 기록</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script defer src="app.js?v=20260716-4"></script>
+    <script defer src="app.js?v=20260802-1"></script>
   </head>
   <body>
     <main class="app-shell">
@@ -21,7 +21,7 @@
 
       <nav class="nav-tabs" aria-label="메뉴">
         <button class="active" data-page="today" type="button">운동 기록</button>
-        <button data-page="month" type="button">주간 기록</button>
+        <button data-page="month" type="button">월/주간 기록</button>
         <button data-page="part" type="button">부위별 기록</button>
       </nav>
 
@@ -49,7 +49,7 @@
 
         <div class="set-head">
           <span></span>
-          <span>무게(kg)</span>
+          <button class="unit-toggle" id="weightUnitLabel" type="button">무게(kg)</button>
           <span>횟수</span>
           <span>볼륨</span>
         </div>
@@ -81,6 +81,8 @@
           <strong id="monthLabel"></strong>
           <button id="nextMonthButton" type="button">다음 달</button>
         </div>
+        <h2>월간 기록</h2>
+        <div class="bar-chart" id="monthlyPartChart"></div>
         <h2>주간 기록</h2>
         <div id="weeklyList"></div>
         <h2>날짜별 기록</h2>
