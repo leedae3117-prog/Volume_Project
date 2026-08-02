@@ -388,15 +388,17 @@ function renderMonthlyPartChart(monthRecords) {
 
   const chartData = BODY_PARTS.map((part) => [part, partMap.get(part) || 0]).filter(([, value]) => value > 0);
   const max = Math.max(...chartData.map(([, value]) => value), 1);
-  $("#monthlyPartChart").innerHTML = chartData.length
+  const total = monthRecords.reduce((sum, row) => sum + Number(row.volume || 0), 0);
+  const totalText = `<p class="muted">${Number(currentMonth.slice(5, 7))}월 · 총볼륨 ${formatKg(total)}</p>`;
+  $("#monthlyPartChart").innerHTML = totalText + (chartData.length
     ? chartData.map(([part, value]) => `
         <div class="bar">
           <strong>${part}</strong>
-          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(8, (value / max) * 100)}%">${formatKg(value)}</div></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(8, (value / max) * 100)}%"></div></div>
           <span>${formatKg(value)}</span>
         </div>
       `).join("")
-    : `<p class="muted">선택한 월의 기록이 없습니다.</p>`;
+    : `<p class="muted">선택한 월의 기록이 없습니다.</p>`);
 }
 
 function renderPartPage() {
@@ -423,7 +425,7 @@ function renderPartPage() {
   $("#partChart").innerHTML = chartData.map(([day, value]) => `
     <div class="bar">
       <strong>${dateLabel(day)}</strong>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(8, (value / max) * 100)}%">${formatKg(value)}</div></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(8, (value / max) * 100)}%"></div></div>
       <span>${formatKg(value)}</span>
     </div>
   `).join("");
