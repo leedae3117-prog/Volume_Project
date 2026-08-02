@@ -334,6 +334,7 @@ function dateLabel(dateText) {
 function renderMonth() {
   const monthRecords = recordsCache.filter((row) => monthOf(row.workout_date) === currentMonth);
   $("#monthLabel").textContent = currentMonth;
+  renderMonthlyPartChart(monthRecords);
 
   const weekMap = new Map();
   for (const row of recordsCache) {
@@ -368,7 +369,7 @@ function renderMonth() {
     if (!dayMap.has(row.workout_date)) dayMap.set(row.workout_date, []);
     dayMap.get(row.workout_date).push(row);
   }
-  $("#dailyList").innerHTML = [...dayMap.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([day, rows]) => {
+  $("#dailyList").innerHTML = [...dayMap.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([day, rows]) => {
     const total = rows.reduce((sum, row) => sum + Number(row.volume || 0), 0);
     return `
       <details class="day-card">
