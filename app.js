@@ -401,6 +401,11 @@ function renderMonthlyPartChart(monthRecords) {
     : `<p class="muted">선택한 월의 기록이 없습니다.</p>`);
 }
 
+function renderPartDetail(partRows, selected, day) {
+  const rows = partRows.filter((row) => row.workout_date === day);
+  $("#partDetail").innerHTML = `<h2>${day} ${selected} 운동 상세</h2>${table(rows)}`;
+}
+
 function renderPartPage() {
   const selected = $("#partFilter").value;
   const partRows = recordsCache.filter((row) => row.body_part === selected);
@@ -423,15 +428,14 @@ function renderPartPage() {
   const chartData = daily.slice(0, 8).reverse();
   const max = Math.max(...chartData.map(([, value]) => value), 1);
   $("#partChart").innerHTML = chartData.map(([day, value]) => `
-    <div class="bar">
+    <div class="bar" data-part-day="${day}">
       <strong>${dateLabel(day)}</strong>
       <div class="bar-track"><div class="bar-fill" style="width:${Math.max(8, (value / max) * 100)}%"></div></div>
       <span>${formatKg(value)}</span>
     </div>
   `).join("");
 
-  const latestRows = partRows.filter((row) => row.workout_date === daily[0][0]);
-  $("#partDetail").innerHTML = `<h2>최근 ${selected} 운동 상세 · ${daily[0][0]}</h2>${table(latestRows)}`;
+  renderPartDetail(partRows, selected, daily[0][0]);
 }
 
 async function refreshAll() {
@@ -466,6 +470,32 @@ function bindEvents() {
   $("#removeSetButton").addEventListener("click", () => resizeSets(setCount - 1));
   $("#cancelEditButton").addEventListener("click", resetForm);
   $("#partFilter").addEventListener("change", renderPartPage);
+  let lastPartActionAt = 0;
+  let partTouchStart = null;
+  const handlePartChartSelect = (event) => {
+    if (event.type === "touchend") {
+      const touch = event.changedTouches[0];
+      const moved = partTouchStart && touch && (
+        Math.abs(touch.clientX - partTouchStart.x) > 12 || Math.abs(touch.clientY - partTouchStart.y) > 12
+      );
+      partTouchStart = null;
+      lastPartActionAt = Date.now();
+      if (moved) return;
+      event.preventDefault();
+    } else if (Date.now() - lastPartActionAt < 450) {
+      return;
+    }
+    const bar = event.target.closest("[data-part-day]");
+    if (!bar) return;
+    const selected = $("#partFilter").value;
+    renderPartDetail(recordsCache.filter((row) => row.body_part === selected), selected, bar.dataset.partDay);
+  };
+  $("#partChart").addEventListener("touchstart", (event) => {
+    const touch = event.changedTouches[0];
+    partTouchStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  });
+  $("#partChart").addEventListener("click", handlePartChartSelect);
+  $("#partChart").addEventListener("touchend", handlePartChartSelect, { passive: false });
   $("#weightUnitLabel").addEventListener("click", () => {
     weightUnit = weightUnit === "kg" ? "lb" : "kg";
     renderSets();
