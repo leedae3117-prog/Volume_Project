@@ -98,10 +98,13 @@ function connectFirebase() {
   return true;
 }
 
-function rowSort(a, b) {
-  return b.workout_date.localeCompare(a.workout_date)
-    || a.exercise_name.localeCompare(b.exercise_name)
+function savedOrderSort(a, b) {
+  return String(a.created_at || "").localeCompare(String(b.created_at || ""))
     || Number(a.set_no) - Number(b.set_no);
+}
+
+function rowSort(a, b) {
+  return b.workout_date.localeCompare(a.workout_date) || savedOrderSort(a, b);
 }
 
 async function queryRecords() {
@@ -123,11 +126,7 @@ async function queryDateRecords(dateText) {
   return snapshot.docs
     .map((item) => item.data())
     .filter((row) => row.workout_date === dateText)
-    .sort((a, b) =>
-      String(b.created_at || "").localeCompare(String(a.created_at || ""))
-      || a.exercise_name.localeCompare(b.exercise_name)
-      || Number(a.set_no) - Number(b.set_no)
-    );
+    .sort(savedOrderSort);
 }
 
 async function deleteWorkoutGroup(target) {
@@ -274,7 +273,7 @@ function groupByExercise(records) {
     group.volume += Number(row.volume || 0);
     group.rows.push(row);
   }
-  return [...map.values()].sort((a, b) => b.volume - a.volume);
+  return [...map.values()];
 }
 
 async function renderTodayRecords() {
@@ -432,7 +431,7 @@ function renderMonthlyPartChart(monthRecords) {
 }
 
 function renderPartDetail(partRows, selected, day) {
-  const rows = partRows.filter((row) => row.workout_date === day);
+  const rows = partRows.filter((row) => row.workout_date === day).sort(savedOrderSort);
   $("#partDetail").innerHTML = `<h2>${day} ${selected} 운동 상세</h2>${table(rows)}`;
 }
 
