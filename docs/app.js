@@ -308,6 +308,7 @@ async function renderTodayRecords() {
             <span>${group.exercise_name}</span>
             <span>${formatKg(group.volume)}</span>
             <button data-edit="${index}" type="button">수정</button>
+            <button data-delete="${index}" type="button">삭제</button>
           </div>
         </div>
       `).join("")
@@ -317,6 +318,18 @@ async function renderTodayRecords() {
 
   $$("[data-edit]").forEach((button) => {
     button.addEventListener("click", () => loadGroupIntoForm(groups[Number(button.dataset.edit)]));
+  });
+  $$("[data-delete]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm("삭제하시겠습니까?")) return;
+      try {
+        await deleteWorkoutGroup(groups[Number(button.dataset.delete)]);
+        toast("삭제했습니다.");
+        await refreshAll();
+      } catch (error) {
+        toast(error.message || "삭제 중 오류가 발생했습니다.");
+      }
+    });
   });
 }
 
@@ -334,8 +347,8 @@ function loadGroupIntoForm(group, options = {}) {
   for (const row of group.rows) {
     sets[Number(row.set_no) - 1] = { weight: Number(row.weight), reps: Number(row.reps) };
   }
-  $("#saveWorkoutButton").textContent = "수정 저장";
-  $("#cancelEditButton").classList.remove("hidden");
+  $("#saveWorkoutButton").textContent = options.keepMode ? "운동 저장" : "수정 저장";
+  $("#cancelEditButton").classList.toggle("hidden", !!options.keepMode);
   renderSets();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
