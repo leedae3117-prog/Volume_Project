@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0f1117" />
     <title>운동 기록</title>
     <link rel="stylesheet" href="styles.css" />
-    <script type="module" src="app.js?v=20260910-2"></script>
+    <script type="module" src="app.js?v=20260910-3"></script>
   </head>
   <body>
     <main class="app-shell">
@@ -36,7 +36,8 @@
           </label>
           <label>
             운동명
-            <input id="exerciseName" placeholder="예: 벤치프레스" />
+            <input id="exerciseName" list="exerciseSuggestions" placeholder="예: 벤치프레스" />
+            <datalist id="exerciseSuggestions"></datalist>
           </label>
         </div>
 

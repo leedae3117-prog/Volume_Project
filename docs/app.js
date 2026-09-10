@@ -210,7 +210,7 @@ function renderSets() {
           </div>
           <div class="number-box">
             <button data-minus-reps="${index}" type="button">-</button>
-            <input data-reps="${index}" inputmode="numeric" value="${item.reps}" />
+            <input data-reps="${index}" inputmode="decimal" value="${item.reps}" />
             <button data-plus-reps="${index}" type="button">+</button>
           </div>
           <div class="volume-cell">${formatKg(volume)}</div>
@@ -276,6 +276,24 @@ function groupByExercise(records) {
   return [...map.values()];
 }
 
+function exerciseGroupsFor(part, name) {
+  return groupByExercise(recordsCache.filter((row) =>
+    row.body_part === part && (!name || row.exercise_name === name)
+  ));
+}
+
+function updateExerciseSuggestions() {
+  const names = [...new Set(exerciseGroupsFor($("#bodyPart").value).map((group) => group.exercise_name))];
+  $("#exerciseSuggestions").innerHTML = names.map((name) => `<option value="${name}"></option>`).join("");
+}
+
+function loadLatestExerciseSuggestion() {
+  const name = $("#exerciseName").value.trim();
+  if (editTarget || !name) return;
+  const group = exerciseGroupsFor($("#bodyPart").value, name)[0];
+  if (group) loadGroupIntoForm(group, { keepDate: true, keepMode: true });
+}
+
 async function renderTodayRecords() {
   const dateText = $("#workoutDate").value;
   const records = await queryDateRecords(dateText);
@@ -302,13 +320,13 @@ async function renderTodayRecords() {
   });
 }
 
-function loadGroupIntoForm(group) {
-  editTarget = {
+function loadGroupIntoForm(group, options = {}) {
+  editTarget = options.keepMode ? null : {
     workout_date: group.workout_date,
     body_part: group.body_part,
     exercise_name: group.exercise_name,
   };
-  $("#workoutDate").value = group.workout_date;
+  if (!options.keepDate) $("#workoutDate").value = group.workout_date;
   $("#bodyPart").value = group.body_part;
   $("#exerciseName").value = group.exercise_name;
   setCount = Math.max(4, Math.min(MAX_SETS, Math.max(...group.rows.map((row) => Number(row.set_no)))));
@@ -491,6 +509,8 @@ function bindEvents() {
     });
   });
 
+  $("#bodyPart").addEventListener("change", updateExerciseSuggestions);
+  $("#exerciseName").addEventListener("change", loadLatestExerciseSuggestion);
   $("#workoutDate").addEventListener("change", async () => {
     currentMonth = monthOf($("#workoutDate").value);
     await renderTodayRecords();
@@ -596,6 +616,7 @@ function bindEvents() {
       toast(editTarget ? "수정했습니다." : "저장했습니다.");
       resetForm();
       await refreshAll();
+      updateExerciseSuggestions();
     } catch (error) {
       toast(error.message || "저장 중 오류가 발생했습니다.");
     }
@@ -612,6 +633,7 @@ async function init() {
   if (connectFirebase()) {
     try {
       await refreshAll();
+      updateExerciseSuggestions();
     } catch (error) {
       toast(error.message || "데이터를 불러오지 못했습니다.");
     }
