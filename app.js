@@ -1,7 +1,26 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import {
+  collection,
+  doc,
+  getDocs,
+  getFirestore,
+  query,
+  where,
+  writeBatch,
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
 const BODY_PARTS = ["가슴", "등", "하체", "어깨", "팔", "복근", "기타"];
 const USER_ID = "daeyeon";
-const SUPABASE_URL = "https://fxvrdevsyxpvtvpwiedj.supabase.co";
-const SUPABASE_KEY = "sb_publishable_T6DuYZZ0LHoJFn6hdEU3fQ_5-oGy2D3";
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAoCjy5xlm-A0ndbHqPTelgaZRGL6flWZ0",
+  authDomain: "workouts-1d158.firebaseapp.com",
+  projectId: "workouts-1d158",
+  storageBucket: "workouts-1d158.firebasestorage.app",
+  messagingSenderId: "373675830183",
+  appId: "1:373675830183:web:11195b4847ee24e7236482",
+  measurementId: "G-DQ05R5HYHB",
+};
+const WORKOUT_COLLECTION = "workout_sets";
 const MAX_SETS = 30;
 const MIN_SETS = 1;
 const LB_PER_KG = 2.2046226218;
@@ -74,57 +93,68 @@ function toast(message) {
   setTimeout(() => el.classList.add("hidden"), 2200);
 }
 
-function connectSupabase() {
-  if (!window.supabase) return false;
-  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+function connectFirebase() {
+  db = getFirestore(initializeApp(FIREBASE_CONFIG));
   return true;
+}
+
+function rowSort(a, b) {
+  return b.workout_date.localeCompare(a.workout_date)
+    || a.exercise_name.localeCompare(b.exercise_name)
+    || Number(a.set_no) - Number(b.set_no);
 }
 
 async function queryRecords() {
   if (!db) return [];
-  const { data, error } = await db
-    .from("workout_sets")
-    .select("*")
-    .eq("user_id", USER_ID)
-    .order("workout_date", { ascending: false })
-    .order("exercise_name", { ascending: true })
-    .order("set_no", { ascending: true });
-
-  if (error) throw error;
-  recordsCache = data || [];
+  const snapshot = await getDocs(query(
+    collection(db, WORKOUT_COLLECTION),
+    where("user_id", "==", USER_ID)
+  ));
+  recordsCache = snapshot.docs.map((item) => item.data()).sort(rowSort);
   return recordsCache;
 }
 
 async function queryDateRecords(dateText) {
   if (!db) return [];
-  const { data, error } = await db
-    .from("workout_sets")
-    .select("*")
-    .eq("user_id", USER_ID)
-    .eq("workout_date", dateText)
-    .order("created_at", { ascending: false })
-    .order("exercise_name", { ascending: true })
-    .order("set_no", { ascending: true });
-
-  if (error) throw error;
-  return data || [];
+  const snapshot = await getDocs(query(
+    collection(db, WORKOUT_COLLECTION),
+    where("user_id", "==", USER_ID)
+  ));
+  return snapshot.docs
+    .map((item) => item.data())
+    .filter((row) => row.workout_date === dateText)
+    .sort((a, b) =>
+      String(b.created_at || "").localeCompare(String(a.created_at || ""))
+      || a.exercise_name.localeCompare(b.exercise_name)
+      || Number(a.set_no) - Number(b.set_no)
+    );
 }
 
 async function deleteWorkoutGroup(target) {
-  const { error } = await db
-    .from("workout_sets")
-    .delete()
-    .eq("user_id", USER_ID)
-    .eq("workout_date", target.workout_date)
-    .eq("body_part", target.body_part)
-    .eq("exercise_name", target.exercise_name);
-
-  if (error) throw error;
+  const snapshot = await getDocs(query(
+    collection(db, WORKOUT_COLLECTION),
+    where("user_id", "==", USER_ID)
+  ));
+  const batch = writeBatch(db);
+  snapshot.docs
+    .filter((item) => {
+      const row = item.data();
+      return row.workout_date === target.workout_date
+        && row.body_part === target.body_part
+        && row.exercise_name === target.exercise_name;
+    })
+    .forEach((item) => batch.delete(item.ref));
+  await batch.commit();
 }
 
 async function insertWorkoutRows(rows) {
-  const { error } = await db.from("workout_sets").insert(rows);
-  if (error) throw error;
+  const batch = writeBatch(db);
+  const createdAt = new Date().toISOString();
+  rows.forEach((row) => batch.set(doc(collection(db, WORKOUT_COLLECTION)), {
+    ...row,
+    created_at: createdAt,
+  }));
+  await batch.commit();
 }
 
 function resetSets(nextCount = 4) {
@@ -558,7 +588,7 @@ function bindEvents() {
 
   $("#saveWorkoutButton").addEventListener("click", async () => {
     try {
-      if (!db && !connectSupabase()) return toast("Supabase 연결에 실패했습니다.");
+      if (!db && !connectFirebase()) return toast("Firebase 연결에 실패했습니다.");
       const rows = rowsForSave();
       if (!$("#exerciseName").value.trim()) return toast("운동명을 입력해주세요.");
       if (!rows.length) return toast("무게와 횟수가 입력된 세트가 없습니다.");
@@ -580,7 +610,7 @@ async function init() {
   currentMonth = monthOf($("#workoutDate").value);
   resetSets(4);
   bindEvents();
-  if (connectSupabase()) {
+  if (connectFirebase()) {
     try {
       await refreshAll();
     } catch (error) {
