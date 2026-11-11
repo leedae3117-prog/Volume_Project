@@ -594,6 +594,8 @@ function bindEvents() {
       return;
     }
 
+    // Commit pending input changes without keeping the mobile keyboard open.
+    document.activeElement?.blur();
     if (target.dataset.plusWeight) changeValue(Number(target.dataset.plusWeight), "weight", weightStepKg());
     if (target.dataset.minusWeight) changeValue(Number(target.dataset.minusWeight), "weight", -weightStepKg());
     if (target.dataset.plusReps) changeValue(Number(target.dataset.plusReps), "reps", 1);
@@ -609,6 +611,9 @@ function bindEvents() {
     const touch = event.changedTouches[0];
     setTouchStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
   }, { passive: true });
+  $("#setList").addEventListener("mousedown", (event) => {
+    if (event.target.closest("button")) event.preventDefault();
+  });
   $("#setList").addEventListener("click", handleSetAction);
   $("#setList").addEventListener("touchend", handleSetAction, { passive: false });
 
